@@ -1,0 +1,139 @@
+# Coding Kids Monitor — V0
+
+## Tujuan
+
+Buat Chrome Extension sederhana untuk membantu tutor Coding Kids mengambil screenshot tab coding siswa.
+
+V0 hanya bertujuan membuktikan bahwa extension dapat mengambil screenshot tab Scratch dengan baik.
+
+Jangan membuat backend, database, login, WebSocket, WebRTC, atau teacher dashboard pada V0.
+
+## Target
+
+Browser:
+
+* Google Chrome
+* Chrome Extension Manifest V3
+
+Target website:
+
+* https://scratch.mit.edu/
+
+## Fitur
+
+Extension popup harus memiliki:
+
+* Judul: Coding Kids Monitor
+* Status apakah active tab merupakan Scratch
+* Tombol "Ambil Screenshot"
+
+Contoh:
+
+Coding Kids Monitor
+
+Tab:
+Scratch
+
+Status:
+Ready
+
+[ Ambil Screenshot ]
+
+## Screenshot
+
+Ketika user menekan "Ambil Screenshot":
+
+1. Ambil screenshot dari tab browser yang sedang aktif.
+2. Tampilkan hasil screenshot di popup extension.
+3. Sediakan tombol "Download" untuk testing.
+4. Tidak perlu mengirim screenshot ke server.
+
+Screenshot hanya boleh dilakukan setelah tombol ditekan.
+
+Tidak boleh ada screenshot otomatis.
+
+## Privacy
+
+Extension tidak boleh:
+
+* mengambil screenshot otomatis
+* merekam layar terus-menerus
+* menggunakan webcam
+* menggunakan microphone
+* melakukan keylogging
+* mengambil browsing history
+* mengakses tab lain
+* mengirim data ke server
+
+## UI
+
+Popup sederhana saja.
+
+Contoh:
+
++--------------------------------+
+| Coding Kids Monitor            |
+|                                |
+| Active tab: Scratch             |
+| Status: Ready                   |
+|                                |
+| [ Ambil Screenshot ]            |
+|                                |
+| Screenshot:                    |
+|                                |
+| [preview screenshot]            |
+|                                |
+| [ Download ]                   |
++--------------------------------+
+
+## Error handling
+
+Jika active tab bukan Scratch:
+
+"Silakan buka Scratch terlebih dahulu."
+
+Jika screenshot gagal:
+
+"Gagal mengambil screenshot."
+
+## Technical Requirements
+
+Gunakan:
+
+* Manifest V3
+* HTML
+* CSS
+* JavaScript
+
+Jangan gunakan framework jika tidak diperlukan.
+
+Jangan gunakan backend.
+
+Jangan menggunakan database.
+
+Jangan menggunakan npm/package yang tidak diperlukan.
+
+Buat project sesederhana mungkin agar mudah dipahami dan dimodifikasi.
+
+## Acceptance Test
+
+V0 dianggap berhasil jika:
+
+1. Extension dapat di-install melalui Chrome Developer Mode.
+2. Extension dapat dibuka.
+3. Extension dapat mendeteksi tab Scratch.
+4. Tombol "Ambil Screenshot" dapat mengambil screenshot tab.
+5. Screenshot dapat ditampilkan di popup.
+6. Screenshot dapat didownload.
+7. Tidak ada data yang dikirim ke internet.
+8. Tidak ada screenshot otomatis.
+
+## Setelah V0 berhasil
+
+JANGAN langsung membuat fitur lain.
+
+Berhenti setelah V0 selesai.
+
+Dokumentasikan cara menjalankan dan mengetes extension.
+
+Langkah berikutnya baru akan dibuat setelah V0 berhasil.

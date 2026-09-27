@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Coding Kids Monitor</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <header class="header">
+      <h1 class="app-title">Coding Kids Monitor</h1>
+    </header>
+
+    <main class="content">
+      <!-- Info Section -->
+      <section class="info-card">
+        <div class="info-row">
+          <span class="info-label">Active tab:</span>
+          <span id="tabStatus" class="status-badge status-loading">Memeriksa...</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Status:</span>
+          <span id="monitorStatus" class="status-badge status-loading">Memeriksa...</span>
+        </div>
+      </section>
+
+      <!-- Error Alert Message -->
+      <div id="errorMessage" class="error-banner hidden" role="alert"></div>
+
+      <!-- Action Button -->
+      <div class="action-wrapper">
+        <button id="captureBtn" class="btn btn-primary" type="button" disabled>
+          Ambil Screenshot
+        </button>
+      </div>
+
+      <!-- Screenshot Preview Section -->
+      <section id="screenshotSection" class="screenshot-container hidden">
+        <h2 class="screenshot-title">Screenshot:</h2>
+        <div class="preview-box">
+          <img id="screenshotPreview" class="preview-img" src="" alt="Preview screenshot Scratch">
+        </div>
+        <div class="action-wrapper">
+          <button id="downloadBtn" class="btn btn-secondary" type="button">
+            Download
+          </button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
