@@ -27,6 +27,7 @@ extention-sreenshot/
 ├── popup.css           # Styling tampilan popup
 ├── popup.js            # Logika deteksi tab, storage, dan screenshot
 ├── background.js       # Service worker: koneksi WebSocket ke backend
+├── test-student.html   # Simulator student untuk testing (buka di tab browser)
 ├── icons/              # Ikon ekstensi dalam berbagai ukuran
 │   ├── icon16.png
 │   ├── icon48.png
@@ -97,17 +98,27 @@ Server berjalan di port `8080` dengan endpoint WebSocket: `ws://localhost:8080/w
 3. Masukkan **Room Code** (contoh: `ABC123`).
 4. Klik tombol **Connect**.
 5. Section **Students:** muncul dengan daftar student yang sedang online.
+6. **Tutup popup lalu buka kembali**: daftar student tetap muncul tanpa perlu reconnect (koneksi WebSocket dijaga oleh background service worker, dan daftar student terakhir disimpan di storage).
 
-### 3. Uji Realtime Daftar Student (1 Teacher + 2 Student)
+### 3. Uji Realtime Daftar Student (1 Teacher + 2 Student) — Cukup 1 Laptop
 
-1. **Teacher**: Buka popup, pilih mode **Teacher**, room `ABC123`, klik **Connect**.
+> **Tidak perlu dua laptop dan tidak perlu profile Chrome terpisah.** Gunakan extension untuk Teacher, dan file `test-student.html` (simulator student) untuk Student. Simulator terhubung langsung ke WebSocket backend, jadi bisa dibuka di beberapa tab sekaligus.
+
+**Persiapan:**
+1. Pastikan backend berjalan: `cd server && go run .`
+2. Buka file `test-student.html` di browser (klik dua kali file-nya, atau drag ke tab Chrome).
+
+**Langkah testing:**
+1. **Teacher** (extension): Buka popup, pilih mode **Teacher**, room `ABC123`, klik **Connect**.
    * Daftar student kosong: `Belum ada student online.`
-2. **Student Budi**: Buka popup di browser/device lain, pilih mode **Student**, nama `Budi`, room `ABC123`, klik **Connect**.
+2. **Student Budi** (tab 1 `test-student.html`): isi nama `Budi`, room `ABC123`, klik **Connect**.
    * Teacher menerima update: `🟢 Budi`
-3. **Student Andi**: Buka popup di browser/device lain, pilih mode **Student**, nama `Andi`, room `ABC123`, klik **Connect**.
+3. **Student Andi** (tab 2 `test-student.html`): isi nama `Andi`, room `ABC123`, klik **Connect**.
    * Teacher menerima update: `🟢 Budi`, `🟢 Andi`
-4. **Budi disconnect**: Klik **Disconnect** di popup Budi.
+4. **Budi disconnect** (tab 1): klik **Disconnect**.
    * Teacher menerima update: `🟢 Andi`
+
+> 💡 Buka `test-student.html` di tab sebanyak yang Anda mau untuk simulasi banyak student sekaligus.
 
 ### 4. Uji Tab Bukan Scratch
 

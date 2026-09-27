@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Student Simulator — Coding Kids Monitor</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #f8fafc;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 24px;
+      width: 360px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    }
+    h2 {
+      font-size: 18px;
+      color: #0f172a;
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #475569;
+      margin: 12px 0 4px;
+    }
+    input {
+      width: 100%;
+      padding: 8px 10px;
+      font-size: 14px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      outline: none;
+    }
+    input:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+    }
+    button {
+      width: 100%;
+      margin-top: 16px;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      background: #2563eb;
+      color: #ffffff;
+    }
+    button:hover { background: #1d4ed8; }
+    .status {
+      margin-top: 12px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+    }
+    .connected {
+      background: #dcfce7;
+      color: #15803d;
+      border: 1px solid #bbf7d0;
+    }
+    .disconnected {
+      background: #f1f5f9;
+      color: #64748b;
+      border: 1px solid #e2e8f0;
+    }
+    .error {
+      background: #fee2e2;
+      color: #b91c1c;
+      border: 1px solid #fecaca;
+    }
+    .hint {
+      margin-top: 16px;
+      font-size: 12px;
+      color: #64748b;
+      line-height: 1.5;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>🧑‍🎓 Test Student Simulator</h2>
+    <p style="font-size: 13px; color: #64748b;">Simulasi student yang terhubung ke WebSocket backend. Buka halaman ini di beberapa tab untuk simulasi beberapa student.</p>
+
+    <label for="name">Student Name</label>
+    <input type="text" id="name" placeholder="Budi" autocomplete="off">
+
+    <label for="room">Room Code</label>
+    <input type="text" id="room" placeholder="ABC123" autocomplete="off">
+
+    <button id="connectBtn" type="button">Connect</button>
+
+    <div id="status" class="status disconnected">Disconnected</div>
+
+    <div class="hint">
+      💡 Pastikan backend berjalan: <code>cd server && go run .</code><br>
+      💡 Buka halaman ini di beberapa tab dengan nama berbeda untuk simulasi banyak student.
+    </div>
+  </div>
+
+  <script>
+    const nameInput = document.getElementById('name');
+    const roomInput = document.getElementById('room');
+    const connectBtn = document.getElementById('connectBtn');
+    const statusEl = document.getElementById('status');
+    let ws = null;
+
+    function setStatus(text, className) {
+      statusEl.textContent = text;
+      statusEl.className = 'status ' + className;
+    }
+
+    connectBtn.addEventListener('click', () => {
+      // Jika sudah terhubung, disconnect
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.close();
+        ws = null;
+        setStatus('Disconnected', 'disconnected');
+        connectBtn.textContent = 'Connect';
+        return;
+      }
+
+      const name = nameInput.value.trim();
+      const room = roomInput.value.trim();
+      if (!name || !room) {
+        setStatus('Isi Student Name dan Room Code', 'error');
+        return;
+      }
+
+      setStatus('Menghubungkan...', 'disconnected');
+
+      try {
+        ws = new WebSocket('ws://localhost:8080/ws');
+      } catch (e) {
+        setStatus('Gagal membuat WebSocket', 'error');
+        return;
+      }
+
+      ws.onopen = () => {
+        ws.send(JSON.stringify({
+          type: 'register',
+          mode: 'student',
+          student_name: name,
+          room_code: room
+        }));
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === 'registered') {
+            setStatus('🟢 Connected: ' + name + ' (room ' + room + ')', 'connected');
+            connectBtn.textContent = 'Disconnect';
+          } else if (msg.type === 'error') {
+            setStatus('Error: ' + msg.message, 'error');
+          }
+        } catch (e) {
+          // abaikan pesan tidak valid
+        }
+      };
+
+      ws.onclose = () => {
+        ws = null;
+        setStatus('Disconnected', 'disconnected');
+        connectBtn.textContent = 'Connect';
+      };
+
+      ws.onerror = () => {
+        setStatus('Gagal terhubung. Pastikan backend berjalan di ws://localhost:8080/ws', 'error');
+      };
+    });
+  </script>
+</body>
+</html>

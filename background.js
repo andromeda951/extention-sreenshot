@@ -6,6 +6,7 @@ const WS_URL = 'ws://localhost:8080/ws';
 
 let socket = null;
 let isConnected = false;
+let lastStudents = [];
 
 // ---- Keepalive: cegah service worker mati karena idle (MV3 mati ~30 detik) ----
 // chrome.alarms bangunkan service worker setiap 25 detik.
@@ -13,10 +14,18 @@ chrome.alarms.create('ws-keepalive', { periodInMinutes: 0.4 }); // ~24 detik
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'ws-keepalive') {
-    // Cukup memiliki listener ini sudah cukup untuk menjaga SW tetap aktif.
     // Jika socket terbuka, kirim ping text agar koneksi tidak idle.
     if (socket && socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify({ type: 'ping' }));
+    } else {
+      // Service worker baru bangun setelah mati idle.
+      // Jika sebelumnya terhubung, reconnect otomatis.
+      chrome.storage.local.get(['isConnected', 'mode', 'studentName', 'roomCode'], (result) => {
+        if (result.isConnected && result.roomCode) {
+          console.log('[background] Reconnect otomatis...');
+          connectWebSocket(result.mode || 'student', result.studentName || '', result.roomCode);
+        }
+      });
     }
   }
 });
@@ -34,9 +43,12 @@ function broadcastStatus(connected, errorMsg) {
 
 // ---- Broadcast daftar student ke popup (untuk mode teacher) ----
 function broadcastStudentList(students) {
+  lastStudents = students || [];
+  // Simpan di storage agar bisa diambil lagi saat popup dibuka kembali.
+  chrome.storage.local.set({ students: lastStudents });
   chrome.runtime.sendMessage({
     type: 'STUDENT_LIST',
-    students: students || []
+    students: lastStudents
   }).catch(() => {
     // Popup tidak sedang terbuka, abaikan error ini.
   });
@@ -113,7 +125,8 @@ function disconnectWebSocket() {
     socket = null;
   }
   isConnected = false;
-  chrome.storage.local.set({ isConnected: false });
+  lastStudents = [];
+  chrome.storage.local.set({ isConnected: false, students: [] });
   broadcastStatus(false);
 }
 
@@ -129,6 +142,15 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     sendResponse({
       connected: !!(socket && socket.readyState === WebSocket.OPEN)
     });
+  } else if (message.type === 'GET_STUDENTS') {
+    if (lastStudents.length > 0) {
+      sendResponse({ students: lastStudents });
+    } else {
+      // Service worker baru bangun, memory kosong — baca dari storage.
+      chrome.storage.local.get(['students'], (result) => {
+        sendResponse({ students: result.students || [] });
+      });
+    }
   }
   return true;
 });

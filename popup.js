@@ -111,6 +111,14 @@ function startApp() {
       }
     });
 
+    // Minta daftar student terakhir dari background saat popup dibuka
+    chrome.runtime.sendMessage({ type: 'GET_STUDENTS' }, (response) => {
+      if (chrome.runtime.lastError || !response) return;
+      if (response.students && response.students.length > 0) {
+        updateStudentList(response.students);
+      }
+    });
+
     // Dengarkan update status dari background worker
     chrome.runtime.onMessage.addListener((message) => {
       if (message.type === 'WS_STATUS') {
