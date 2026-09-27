@@ -40,6 +40,58 @@ body {
   gap: 12px;
 }
 
+.card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.form-input {
+  width: 100%;
+  padding: 7px 10px;
+  font-size: 13px;
+  color: #0f172a;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.form-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+.form-row-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 2px;
+}
+
+.form-status-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+}
+
 .info-card {
   background-color: #ffffff;
   border: 1px solid #e2e8f0;
@@ -95,6 +147,18 @@ body {
   border: 1px solid #e2e8f0;
 }
 
+.status-disconnected {
+  background-color: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #cbd5e1;
+}
+
+.status-connected {
+  background-color: #dcfce7;
+  color: #15803d;
+  border: 1px solid #86efac;
+}
+
 .error-banner {
   background-color: #fee2e2;
   color: #991b1b;
@@ -127,6 +191,24 @@ body {
 
 .btn:active:not(:disabled) {
   transform: scale(0.99);
+}
+
+.btn-connect {
+  background-color: #2563eb;
+  color: #ffffff;
+}
+
+.btn-connect:hover {
+  background-color: #1d4ed8;
+}
+
+.btn-disconnect {
+  background-color: #64748b;
+  color: #ffffff;
+}
+
+.btn-disconnect:hover {
+  background-color: #475569;
 }
 
 .btn-primary {

@@ -13,7 +13,26 @@
     </header>
 
     <main class="content">
-      <!-- Info Section -->
+      <!-- Form Section: Student Name & Room Code -->
+      <section class="card form-card">
+        <div class="form-group">
+          <label for="studentName" class="form-label">Student Name</label>
+          <input type="text" id="studentName" class="form-input" placeholder="Masukkan nama siswa" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label for="roomCode" class="form-label">Room Code</label>
+          <input type="text" id="roomCode" class="form-input" placeholder="Masukkan room code" autocomplete="off">
+        </div>
+        <div class="form-row-status">
+          <span class="form-status-label">Status:</span>
+          <span id="connectionStatus" class="status-badge status-disconnected">Disconnected</span>
+        </div>
+        <div class="action-wrapper">
+          <button id="connectBtn" class="btn btn-connect" type="button">Connect</button>
+        </div>
+      </section>
+
+      <!-- Info Section: Scratch Tab -->
       <section class="info-card">
         <div class="info-row">
           <span class="info-label">Active tab:</span>
@@ -28,7 +47,7 @@
       <!-- Error Alert Message -->
       <div id="errorMessage" class="error-banner hidden" role="alert"></div>
 
-      <!-- Action Button -->
+      <!-- Action Button: Ambil Screenshot -->
       <div class="action-wrapper">
         <button id="captureBtn" class="btn btn-primary" type="button" disabled>
           Ambil Screenshot
