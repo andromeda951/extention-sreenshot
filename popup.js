@@ -17,62 +17,67 @@ function startApp() {
   let currentScreenshotUrl = null;
   let isConnected = false;
 
-  // --- LOGIKA KONEKSI & STORAGE ---
+  // --- LOGIKA KONEKSI (lewat background service worker) ---
 
   // Update tampilan status koneksi
-  function updateConnectionUI(connected) {
+  function updateConnectionUI(connected, errorMsg) {
     isConnected = connected;
     if (connected) {
       connectionStatus.textContent = 'Connected';
       connectionStatus.className = 'status-badge status-connected';
       connectBtn.textContent = 'Disconnect';
       connectBtn.className = 'btn btn-disconnect';
+      hideError();
     } else {
       connectionStatus.textContent = 'Disconnected';
       connectionStatus.className = 'status-badge status-disconnected';
       connectBtn.textContent = 'Connect';
       connectBtn.className = 'btn btn-connect';
+      if (errorMsg) showError(errorMsg);
     }
   }
 
-  // Muat data tersimpan dari chrome.storage.local
+  // Muat data dari storage
   if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
     try {
-      chrome.storage.local.get(['studentName', 'roomCode', 'isConnected'], (result) => {
-        if (chrome.runtime.lastError || !result) {
-          console.warn('Storage get error:', chrome.runtime.lastError);
-          return;
-        }
-        if (result.studentName) {
-          studentNameInput.value = result.studentName;
-        }
-        if (result.roomCode) {
-          roomCodeInput.value = result.roomCode;
-        }
-        updateConnectionUI(Boolean(result.isConnected));
+      chrome.storage.local.get(['studentName', 'roomCode'], (result) => {
+        if (chrome.runtime.lastError || !result) return;
+        if (result.studentName) studentNameInput.value = result.studentName;
+        if (result.roomCode) roomCodeInput.value = result.roomCode;
       });
     } catch (e) {
       console.warn('Storage exception:', e);
     }
 
-    // Simpan otomatis saat input berubah
     studentNameInput.addEventListener('input', () => {
       chrome.storage.local.set({ studentName: studentNameInput.value });
     });
-
     roomCodeInput.addEventListener('input', () => {
       chrome.storage.local.set({ roomCode: roomCodeInput.value });
     });
   }
 
-  // Tombol Connect / Disconnect (tidak terhubung ke backend/internet)
+  // Sinkronisasi status koneksi dari background worker saat popup dibuka
+  if (typeof chrome !== 'undefined' && chrome.runtime) {
+    chrome.runtime.sendMessage({ type: 'GET_STATUS' }, (response) => {
+      if (chrome.runtime.lastError) return;
+      if (response && response.connected) {
+        updateConnectionUI(true);
+      }
+    });
+
+    // Dengarkan update status dari background worker
+    chrome.runtime.onMessage.addListener((message) => {
+      if (message.type === 'WS_STATUS') {
+        updateConnectionUI(message.connected, message.error);
+      }
+    });
+  }
+
+  // Tombol Connect / Disconnect
   connectBtn.addEventListener('click', () => {
     if (isConnected) {
-      // Ubah status ke Disconnected
-      updateConnectionUI(false);
-      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-        chrome.storage.local.set({ isConnected: false });
-      }
+      chrome.runtime.sendMessage({ type: 'DISCONNECT' });
     } else {
       const name = studentNameInput.value.trim();
       const room = roomCodeInput.value.trim();
@@ -83,20 +88,15 @@ function startApp() {
       }
 
       hideError();
-
-      // Simpan dan ubah status ke Connected
-      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-        chrome.storage.local.set({
-          studentName: studentNameInput.value,
-          roomCode: roomCodeInput.value,
-          isConnected: true
-        });
-      }
-      updateConnectionUI(true);
+      chrome.runtime.sendMessage({
+        type: 'CONNECT',
+        studentName: name,
+        roomCode: room
+      });
     }
   });
 
-  // --- LOGIKA SCREENSHOT V0 ---
+  // --- LOGIKA SCREENSHOT ---
 
   // Cek apakah URL merupakan website Scratch
   function isScratchUrl(urlString) {
@@ -128,59 +128,44 @@ function startApp() {
     }
   }
 
-  // Wrapper promise untuk chrome.tabs.query yang aman dari hanging
+  // Wrapper promise untuk chrome.tabs.query
   function queryTabs(queryInfo) {
     return new Promise((resolve) => {
       try {
         chrome.tabs.query(queryInfo, (tabs) => {
           if (chrome.runtime.lastError) {
-            console.warn('queryTabs lastError:', chrome.runtime.lastError);
             resolve([]);
           } else {
             resolve(tabs || []);
           }
         });
       } catch (err) {
-        console.warn('queryTabs exception:', err);
         resolve([]);
       }
     });
   }
 
-  // Ambil active tab dengan fallback multi-strategi
+  // Ambil active tab
   async function getActiveTab() {
-    if (typeof chrome === 'undefined' || !chrome.tabs || !chrome.tabs.query) {
-      console.warn('Chrome Tabs API tidak tersedia di konteks ini.');
-      return null;
-    }
+    if (typeof chrome === 'undefined' || !chrome.tabs || !chrome.tabs.query) return null;
 
     try {
-      // 1. Coba window aktif saat ini
       let tabs = await queryTabs({ active: true, currentWindow: true });
-      if (tabs && tabs.length > 0 && (tabs[0].url || tabs[0].pendingUrl)) {
-        return tabs[0];
-      }
+      if (tabs && tabs.length > 0 && (tabs[0].url || tabs[0].pendingUrl)) return tabs[0];
 
-      // 2. Coba window yang terakhir difokuskan
       tabs = await queryTabs({ active: true, lastFocusedWindow: true });
-      if (tabs && tabs.length > 0 && (tabs[0].url || tabs[0].pendingUrl)) {
-        return tabs[0];
-      }
+      if (tabs && tabs.length > 0 && (tabs[0].url || tabs[0].pendingUrl)) return tabs[0];
 
-      // 3. Fallback: semua tab aktif di browser
       tabs = await queryTabs({ active: true });
-      if (tabs && tabs.length > 0) {
-        return tabs[0];
-      }
+      if (tabs && tabs.length > 0) return tabs[0];
 
       return null;
     } catch (err) {
-      console.error('Error saat mengambil active tab:', err);
       return null;
     }
   }
 
-  // Periksa active tab dan perbarui status di UI
+  // Periksa active tab dan update status
   async function initializeStatus() {
     try {
       const tab = await getActiveTab();
@@ -189,24 +174,19 @@ function startApp() {
       if (url && isScratchUrl(url)) {
         tabStatus.textContent = 'Scratch';
         tabStatus.className = 'status-badge status-success';
-
         monitorStatus.textContent = 'Ready';
         monitorStatus.className = 'status-badge status-ready';
-
         captureBtn.disabled = false;
         hideError();
       } else {
         tabStatus.textContent = 'Bukan Scratch';
         tabStatus.className = 'status-badge status-danger';
-
         monitorStatus.textContent = 'Silakan buka Scratch terlebih dahulu.';
         monitorStatus.className = 'status-badge status-danger';
-
         captureBtn.disabled = true;
         showError('Silakan buka Scratch terlebih dahulu.');
       }
     } catch (err) {
-      console.error('Error initializeStatus:', err);
       tabStatus.textContent = 'Bukan Scratch';
       tabStatus.className = 'status-badge status-danger';
       monitorStatus.textContent = 'Silakan buka Scratch terlebih dahulu.';
@@ -214,9 +194,8 @@ function startApp() {
     }
   }
 
-  // Event handler tombol Ambil Screenshot
+  // Tombol Ambil Screenshot
   captureBtn.addEventListener('click', async () => {
-    // Validasi ulang apakah tab aktif adalah Scratch
     const tab = await getActiveTab();
     const url = tab ? (tab.url || tab.pendingUrl) : null;
 
@@ -230,7 +209,6 @@ function startApp() {
       return;
     }
 
-    // Set UI state sedang mengambil screenshot
     captureBtn.disabled = true;
     captureBtn.textContent = 'Mengambil...';
     monitorStatus.textContent = 'Mengambil screenshot...';
@@ -245,23 +223,19 @@ function startApp() {
         captureBtn.textContent = 'Ambil Screenshot';
 
         if (chrome.runtime.lastError || !dataUrl) {
-          console.error('Error captureVisibleTab:', chrome.runtime.lastError);
           monitorStatus.textContent = 'Gagal';
           monitorStatus.className = 'status-badge status-danger';
           showError('Gagal mengambil screenshot.');
           return;
         }
 
-        // Tampilkan hasil screenshot
         currentScreenshotUrl = dataUrl;
         screenshotPreview.src = dataUrl;
         screenshotSection.classList.remove('hidden');
-
         monitorStatus.textContent = 'Ready';
         monitorStatus.className = 'status-badge status-ready';
       });
     } catch (err) {
-      console.error('Exception saat screenshot:', err);
       captureBtn.disabled = false;
       captureBtn.textContent = 'Ambil Screenshot';
       monitorStatus.textContent = 'Gagal';
@@ -270,12 +244,11 @@ function startApp() {
     }
   });
 
-  // Event handler tombol Download
+  // Tombol Download
   downloadBtn.addEventListener('click', () => {
     if (!currentScreenshotUrl) return;
 
     try {
-      // Konversi data URI ke Blob untuk unduhan yang aman dan kompatibel
       const parts = currentScreenshotUrl.split(',');
       const mime = parts[0].match(/:(.*?);/)[1];
       const byteCharacters = atob(parts[1]);
@@ -288,13 +261,11 @@ function startApp() {
       const blob = new Blob([byteArrays], { type: mime });
       const blobUrl = URL.createObjectURL(blob);
 
-      // Generate nama file dengan timestamp
       const now = new Date();
       const datePart = now.toISOString().slice(0, 10);
       const timePart = now.toTimeString().slice(0, 8).replace(/:/g, '-');
       const filename = 'scratch-screenshot-' + datePart + '_' + timePart + '.png';
 
-      // Trigger download via anchor element
       const downloadLink = document.createElement('a');
       downloadLink.href = blobUrl;
       downloadLink.download = filename;
@@ -302,21 +273,16 @@ function startApp() {
       downloadLink.click();
       document.body.removeChild(downloadLink);
 
-      // Bersihkan object URL setelah beberapa saat
-      setTimeout(() => {
-        URL.revokeObjectURL(blobUrl);
-      }, 5000);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
     } catch (err) {
-      console.error('Error saat mendownload screenshot:', err);
       showError('Gagal mendownload screenshot.');
     }
   });
 
-  // Jalankan pemeriksaan status saat popup dibuka
+  // Jalankan saat popup dibuka
   initializeStatus();
 }
 
-// Eksekusi startApp dengan aman terhadap lifecycle readyState
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', startApp);
 } else {
