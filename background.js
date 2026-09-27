@@ -32,8 +32,18 @@ function broadcastStatus(connected, errorMsg) {
   });
 }
 
+// ---- Broadcast daftar student ke popup (untuk mode teacher) ----
+function broadcastStudentList(students) {
+  chrome.runtime.sendMessage({
+    type: 'STUDENT_LIST',
+    students: students || []
+  }).catch(() => {
+    // Popup tidak sedang terbuka, abaikan error ini.
+  });
+}
+
 // ---- Buka koneksi WebSocket ----
-function connectWebSocket(studentName, roomCode) {
+function connectWebSocket(mode, studentName, roomCode) {
   if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
     // Sudah terhubung, langsung beritahu popup
     broadcastStatus(true);
@@ -53,8 +63,31 @@ function connectWebSocket(studentName, roomCode) {
   socket.onopen = () => {
     console.log('[background] WebSocket terhubung');
     isConnected = true;
-    chrome.storage.local.set({ isConnected: true, studentName, roomCode });
+    chrome.storage.local.set({ isConnected: true, mode, studentName, roomCode });
+
+    // Kirim pesan register ke server
+    const registerMsg = {
+      type: 'register',
+      mode: mode,
+      room_code: roomCode
+    };
+    if (mode === 'student') {
+      registerMsg.student_name = studentName;
+    }
+    socket.send(JSON.stringify(registerMsg));
+
     broadcastStatus(true);
+  };
+
+  socket.onmessage = (event) => {
+    try {
+      const msg = JSON.parse(event.data);
+      if (msg.type === 'student_list') {
+        broadcastStudentList(msg.students);
+      }
+    } catch (e) {
+      console.warn('[background] Pesan tidak valid:', e);
+    }
   };
 
   socket.onclose = (event) => {
@@ -87,7 +120,7 @@ function disconnectWebSocket() {
 // ---- Terima pesan dari popup ----
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === 'CONNECT') {
-    connectWebSocket(message.studentName, message.roomCode);
+    connectWebSocket(message.mode, message.studentName, message.roomCode);
     sendResponse({ ok: true });
   } else if (message.type === 'DISCONNECT') {
     disconnectWebSocket();

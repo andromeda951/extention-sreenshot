@@ -1,9 +1,15 @@
 function startApp() {
   // Elemen Form Koneksi
+  const modeSelect = document.getElementById('modeSelect');
   const studentNameInput = document.getElementById('studentName');
+  const studentNameGroup = document.getElementById('studentNameGroup');
   const roomCodeInput = document.getElementById('roomCode');
   const connectionStatus = document.getElementById('connectionStatus');
   const connectBtn = document.getElementById('connectBtn');
+
+  // Elemen Daftar Student (mode Teacher)
+  const studentListSection = document.getElementById('studentListSection');
+  const studentList = document.getElementById('studentList');
 
   // Elemen Monitor & Screenshot
   const tabStatus = document.getElementById('tabStatus');
@@ -16,6 +22,7 @@ function startApp() {
 
   let currentScreenshotUrl = null;
   let isConnected = false;
+  let currentMode = 'student';
 
   // --- LOGIKA KONEKSI (lewat background service worker) ---
 
@@ -37,11 +44,45 @@ function startApp() {
     }
   }
 
+  // Update daftar student (mode Teacher)
+  function updateStudentList(students) {
+    studentList.innerHTML = '';
+    if (!students || students.length === 0) {
+      const li = document.createElement('li');
+      li.className = 'student-list-empty';
+      li.textContent = 'Belum ada student online.';
+      studentList.appendChild(li);
+      return;
+    }
+    students.forEach((name) => {
+      const li = document.createElement('li');
+      li.className = 'student-list-item';
+      li.textContent = '🟢 ' + name;
+      studentList.appendChild(li);
+    });
+  }
+
+  // Update tampilan berdasarkan mode
+  function updateModeUI() {
+    currentMode = modeSelect.value;
+    if (currentMode === 'teacher') {
+      studentNameGroup.classList.add('hidden');
+      studentListSection.classList.remove('hidden');
+    } else {
+      studentNameGroup.classList.remove('hidden');
+      studentListSection.classList.add('hidden');
+    }
+  }
+
   // Muat data dari storage
   if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
     try {
-      chrome.storage.local.get(['studentName', 'roomCode'], (result) => {
+      chrome.storage.local.get(['mode', 'studentName', 'roomCode'], (result) => {
         if (chrome.runtime.lastError || !result) return;
+        if (result.mode) {
+          modeSelect.value = result.mode;
+          updateModeUI();
+        }
         if (result.studentName) studentNameInput.value = result.studentName;
         if (result.roomCode) roomCodeInput.value = result.roomCode;
       });
@@ -49,6 +90,10 @@ function startApp() {
       console.warn('Storage exception:', e);
     }
 
+    modeSelect.addEventListener('change', () => {
+      chrome.storage.local.set({ mode: modeSelect.value });
+      updateModeUI();
+    });
     studentNameInput.addEventListener('input', () => {
       chrome.storage.local.set({ studentName: studentNameInput.value });
     });
@@ -70,6 +115,8 @@ function startApp() {
     chrome.runtime.onMessage.addListener((message) => {
       if (message.type === 'WS_STATUS') {
         updateConnectionUI(message.connected, message.error);
+      } else if (message.type === 'STUDENT_LIST') {
+        updateStudentList(message.students);
       }
     });
   }
@@ -79,20 +126,36 @@ function startApp() {
     if (isConnected) {
       chrome.runtime.sendMessage({ type: 'DISCONNECT' });
     } else {
-      const name = studentNameInput.value.trim();
+      const mode = modeSelect.value;
       const room = roomCodeInput.value.trim();
 
-      if (!name || !room) {
-        showError('Mohon isi Student Name dan Room Code.');
+      if (!room) {
+        showError('Mohon isi Room Code.');
         return;
       }
 
-      hideError();
-      chrome.runtime.sendMessage({
-        type: 'CONNECT',
-        studentName: name,
-        roomCode: room
-      });
+      if (mode === 'student') {
+        const name = studentNameInput.value.trim();
+        if (!name) {
+          showError('Mohon isi Student Name dan Room Code.');
+          return;
+        }
+        hideError();
+        chrome.runtime.sendMessage({
+          type: 'CONNECT',
+          mode: mode,
+          studentName: name,
+          roomCode: room
+        });
+      } else {
+        hideError();
+        chrome.runtime.sendMessage({
+          type: 'CONNECT',
+          mode: mode,
+          studentName: '',
+          roomCode: room
+        });
+      }
     }
   });
 
@@ -278,6 +341,9 @@ function startApp() {
       showError('Gagal mendownload screenshot.');
     }
   });
+
+  // Inisialisasi mode UI
+  updateModeUI();
 
   // Jalankan saat popup dibuka
   initializeStatus();

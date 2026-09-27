@@ -13,9 +13,16 @@
     </header>
 
     <main class="content">
-      <!-- Form Section: Student Name & Room Code -->
+      <!-- Form Section: Mode, Student Name & Room Code -->
       <section class="card form-card">
         <div class="form-group">
+          <label for="modeSelect" class="form-label">Mode</label>
+          <select id="modeSelect" class="form-input">
+            <option value="student">Student</option>
+            <option value="teacher">Teacher</option>
+          </select>
+        </div>
+        <div class="form-group" id="studentNameGroup">
           <label for="studentName" class="form-label">Student Name</label>
           <input type="text" id="studentName" class="form-input" placeholder="Masukkan nama siswa" autocomplete="off">
         </div>
@@ -30,6 +37,14 @@
         <div class="action-wrapper">
           <button id="connectBtn" class="btn btn-connect" type="button">Connect</button>
         </div>
+      </section>
+
+      <!-- Student List Section: hanya untuk mode Teacher -->
+      <section id="studentListSection" class="info-card hidden">
+        <div class="info-row">
+          <span class="info-label">Students:</span>
+        </div>
+        <ul id="studentList" class="student-list"></ul>
       </section>
 
       <!-- Info Section: Scratch Tab -->
