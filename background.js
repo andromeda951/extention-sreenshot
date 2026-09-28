@@ -2,7 +2,10 @@
 // Koneksi WebSocket dikelola di sini, bukan di popup, agar tidak terputus
 // ketika popup ditutup (popup Chrome MV3 adalah dokumen sementara).
 
-const WS_URL = 'ws://localhost:8080/ws';
+// Muat konfigurasi global (APP_WS_URL). Ubah config.js saat deploy ke VPS.
+importScripts('config.js');
+
+const WS_URL = APP_WS_URL;
 
 let socket = null;
 let isConnected = false;

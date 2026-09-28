@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -313,11 +314,17 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	port := ":8080"
+	// Gunakan PORT dari environment variable (umum di platform deploy seperti Render/Railway).
+	// Default ke 8080 jika PORT tidak di-set.
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
 	http.HandleFunc("/ws", handleWebSocket)
 
-	fmt.Printf("Server berjalan di port %s (WebSocket endpoint: ws://localhost%s/ws)\n", port, port)
-	if err := http.ListenAndServe(port, nil); err != nil {
+	fmt.Printf("Server berjalan di port %s (WebSocket endpoint: ws://localhost:%s/ws)\n", port, port)
+	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatalf("Server error: %v\n", err)
 	}
 }

@@ -1,0 +1,23 @@
+# render.yaml — Konfigurasi deploy Render (Web Services)
+# Sesuai dengan pilihan "Web Services / Dynamic web app" di Render.
+#
+# Cara deploy:
+# 1. Push project ke GitHub.
+# 2. Di Render Dashboard → New → Blueprint (atau Web Service).
+# 3. Pilih repo, Render akan membaca render.yaml ini.
+# 4. Build & deploy otomatis.
+#
+# WebSocket endpoint setelah deploy: wss://<nama-app>.onrender.com/ws
+# Lalu ubah config.js: const APP_WS_URL = 'wss://<nama-app>.onrender.com/ws';
+
+services:
+  - type: web
+    name: coding-kids-monitor
+    runtime: go
+    plan: free
+    rootDir: server
+    buildCommand: ""
+    startCommand: go run main.go
+    envVars:
+      - key: PORT
+        value: 8080

@@ -1,7 +1,7 @@
 // dashboard.js — Logika Teacher Dashboard
 // Dipisah dari dashboard.html karena CSP MV3 melarang inline script.
 
-const WS_URL = 'ws://localhost:8080/ws';
+const WS_URL = typeof APP_WS_URL !== 'undefined' ? APP_WS_URL : 'ws://localhost:8080/ws';
 
 let ws = null;
 let roomCode = '';

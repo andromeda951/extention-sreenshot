@@ -113,7 +113,10 @@
     </div>
   </div>
 
+  <script src="config.js"></script>
   <script>
+    const WS_URL = typeof APP_WS_URL !== 'undefined' ? APP_WS_URL : 'ws://localhost:8080/ws';
+
     const nameInput = document.getElementById('name');
     const roomInput = document.getElementById('room');
     const connectBtn = document.getElementById('connectBtn');
@@ -145,7 +148,7 @@
       setStatus('Menghubungkan...', 'disconnected');
 
       try {
-        ws = new WebSocket('ws://localhost:8080/ws');
+        ws = new WebSocket(WS_URL);
       } catch (e) {
         setStatus('Gagal membuat WebSocket', 'error');
         return;

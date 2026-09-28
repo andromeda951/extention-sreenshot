@@ -75,6 +75,62 @@ Server berjalan di port `8080` dengan endpoint WebSocket: `ws://localhost:8080/w
 
 ---
 
+## Cara Deploy ke VPS (Render — Web Services)
+
+> Pilihan yang benar di Render adalah **Web Services** (Dynamic web app), **bukan** Background Workers (yang untuk job queue).
+
+### 1. Push project ke GitHub
+
+```bash
+git init
+git add .
+git commit -m "Step 5 - Teacher screenshot request"
+git remote add origin https://github.com/<username>/<repo>.git
+git push -u origin main
+```
+
+### 2. Deploy di Render
+
+1. Buka [render.com](https://render.com) → **New** → **Blueprint** (Render akan membaca `render.yaml`).
+2. Pilih repo GitHub yang sudah di-push.
+3. Render otomatis deploy server Go dari folder `server/` (lihat `render.yaml`).
+4. Tunggu sampai status `Live`.
+
+### 3. Ubah config.js
+
+Setelah deploy selesai, Render memberi URL seperti:
+```
+https://coding-kids-monitor.onrender.com
+```
+
+Ubah `config.js` di project:
+
+```js
+// Sebelum (lokal):
+const APP_WS_URL = 'ws://localhost:8080/ws';
+
+// Sesudah (VPS Render):
+const APP_WS_URL = 'wss://coding-kids-monitor.onrender.com/ws';
+```
+
+> ⚠️ Gunakan `wss://` (bukan `ws://`) karena Render menyediakan HTTPS secara otomatis.
+
+### 4. Reload extension
+
+1. Ubah `config.js`.
+2. Buka `chrome://extensions/`.
+3. Klik **Reload (🔄)** pada kartu Coding Kids Monitor.
+4. Install/reload di semua laptop (teacher dan student) — gunakan **Load unpacked** dari folder proyek.
+
+### 5. Catatan penting
+
+* `server/go.mod` dan `server/go.sum` sudah ada — Render tidak perlu instal tambahan.
+* Server membaca port dari environment variable `$PORT` yang disediakan Render.
+* File `test-student.html` dan `dashboard.html` juga membaca `config.js` — otomatis ikut berubah.
+* Screenshot yang dikirim antar-laptop melalui VPS sama seperti di lokal.
+
+---
+
 ## Cara Membuka Teacher Dashboard
 
 1. Buka popup extension.
