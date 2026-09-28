@@ -54,6 +54,83 @@ function broadcastStudentList(students) {
   });
 }
 
+// ---- Cek apakah URL merupakan website Scratch ----
+function isScratchUrl(urlString) {
+  if (!urlString) return false;
+  try {
+    const url = new URL(urlString);
+    return (
+      (url.protocol === 'http:' || url.protocol === 'https:') &&
+      (url.hostname === 'scratch.mit.edu' || url.hostname.endsWith('.scratch.mit.edu'))
+    );
+  } catch {
+    return false;
+  }
+}
+
+// ---- Ambil screenshot tab Scratch aktif ----
+function captureScratchScreenshot() {
+  return new Promise((resolve, reject) => {
+    chrome.tabs.query({}, (tabs) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+
+      // Cari tab Scratch
+      const scratchTab = (tabs || []).find((tab) => {
+        const url = tab.url || tab.pendingUrl || '';
+        return isScratchUrl(url);
+      });
+
+      if (!scratchTab) {
+        reject(new Error('Tidak ada tab Scratch yang terbuka'));
+        return;
+      }
+
+      console.log('[background] Tab Scratch ditemukan:', scratchTab.id, scratchTab.url);
+
+      // Aktifkan tab Scratch agar bisa di-capture
+      chrome.tabs.update(scratchTab.id, { active: true }, () => {
+        if (chrome.runtime.lastError) {
+          reject(new Error('Gagal aktifkan tab: ' + chrome.runtime.lastError.message));
+          return;
+        }
+
+        // Fokuskan window agar captureVisibleTab berhasil
+        chrome.windows.update(scratchTab.windowId, { focused: true }, () => {
+          if (chrome.runtime.lastError) {
+            reject(new Error('Gagal fokuskan window: ' + chrome.runtime.lastError.message));
+            return;
+          }
+
+          // Capture tab yang sekarang aktif di window tersebut
+          chrome.tabs.captureVisibleTab(scratchTab.windowId, { format: 'png' }, (dataUrl) => {
+            if (chrome.runtime.lastError || !dataUrl) {
+              reject(new Error(chrome.runtime.lastError ? chrome.runtime.lastError.message : 'Gagal capture'));
+              return;
+            }
+            console.log('[background] Screenshot berhasil, ukuran:', dataUrl.length, 'chars');
+            resolve(dataUrl);
+          });
+        });
+      });
+    });
+  });
+}
+
+// ---- Kirim screenshot ke server ----
+function sendScreenshotToServer(dataUrl) {
+  if (!socket || socket.readyState !== WebSocket.OPEN) {
+    console.warn('[background] Socket tidak terbuka, screenshot tidak dikirim');
+    return;
+  }
+  socket.send(JSON.stringify({
+    type: 'screenshot_result',
+    image_data: dataUrl
+  }));
+}
+
 // ---- Buka koneksi WebSocket ----
 function connectWebSocket(mode, studentName, roomCode) {
   if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
@@ -96,6 +173,18 @@ function connectWebSocket(mode, studentName, roomCode) {
       const msg = JSON.parse(event.data);
       if (msg.type === 'student_list') {
         broadcastStudentList(msg.students);
+      } else if (msg.type === 'screenshot_request') {
+        // Student menerima perintah screenshot dari teacher.
+        // Ambil screenshot tab Scratch aktif dan kirim kembali ke server.
+        console.log('[background] Menerima perintah screenshot');
+        captureScratchScreenshot()
+          .then((dataUrl) => {
+            console.log('[background] Screenshot berhasil diambil');
+            sendScreenshotToServer(dataUrl);
+          })
+          .catch((err) => {
+            console.error('[background] Gagal mengambil screenshot:', err.message);
+          });
       }
     } catch (e) {
       console.warn('[background] Pesan tidak valid:', e);

@@ -10,6 +10,7 @@ function startApp() {
   // Elemen Daftar Student (mode Teacher)
   const studentListSection = document.getElementById('studentListSection');
   const studentList = document.getElementById('studentList');
+  const openDashboardBtn = document.getElementById('openDashboardBtn');
 
   // Elemen Monitor & Screenshot
   const tabStatus = document.getElementById('tabStatus');
@@ -128,6 +129,13 @@ function startApp() {
       }
     });
   }
+
+  // Tombol Buka Teacher Dashboard
+  openDashboardBtn.addEventListener('click', () => {
+    const room = roomCodeInput.value.trim();
+    const url = chrome.runtime.getURL('dashboard.html') + '?room=' + encodeURIComponent(room);
+    chrome.tabs.create({ url: url });
+  });
 
   // Tombol Connect / Disconnect
   connectBtn.addEventListener('click', () => {

@@ -168,6 +168,18 @@
             connectBtn.textContent = 'Disconnect';
           } else if (msg.type === 'error') {
             setStatus('Error: ' + msg.message, 'error');
+          } else if (msg.type === 'screenshot_request') {
+            // Simulasi screenshot: kirim gambar placeholder (PNG 1x1 hijau)
+            // Extension asli akan mengambil screenshot tab Scratch asli.
+            const placeholder = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+            setStatus('📸 Screenshot diminta, mengirim...', 'connected');
+            setTimeout(() => {
+              ws.send(JSON.stringify({
+                type: 'screenshot_result',
+                image_data: placeholder
+              }));
+              setStatus('📸 Screenshot terkirim: ' + name, 'connected');
+            }, 500);
           }
         } catch (e) {
           // abaikan pesan tidak valid

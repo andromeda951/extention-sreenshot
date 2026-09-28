@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teacher Dashboard — Coding Kids Monitor</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #f1f5f9;
+      color: #1e293b;
+      min-height: 100vh;
+    }
+    .header {
+      background: #0f172a;
+      color: #ffffff;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .header h1 {
+      font-size: 20px;
+      font-weight: 700;
+    }
+    .header .room-info {
+      font-size: 14px;
+      color: #94a3b8;
+    }
+    .header .room-info strong {
+      color: #ffffff;
+    }
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .status-badge {
+      font-size: 13px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 9999px;
+    }
+    .status-connected {
+      background: #dcfce7;
+      color: #15803d;
+    }
+    .status-disconnected {
+      background: #f1f5f9;
+      color: #64748b;
+    }
+    .btn {
+      padding: 8px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.15s ease;
+    }
+    .btn-primary {
+      background: #2563eb;
+      color: #ffffff;
+    }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-primary:disabled {
+      background: #cbd5e1;
+      color: #64748b;
+      cursor: not-allowed;
+    }
+    .btn-secondary {
+      background: #0f172a;
+      color: #ffffff;
+    }
+    .btn-secondary:hover { background: #1e293b; }
+    .btn-secondary:disabled {
+      background: #cbd5e1;
+      color: #64748b;
+      cursor: not-allowed;
+    }
+    .btn-sm {
+      padding: 5px 10px;
+      font-size: 12px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    .connect-panel {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 480px;
+      margin: 40px auto;
+      text-align: center;
+    }
+    .connect-panel h2 {
+      font-size: 18px;
+      margin-bottom: 16px;
+    }
+    .connect-panel label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #475569;
+      margin-bottom: 6px;
+      text-align: left;
+    }
+    .connect-panel input {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 15px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      outline: none;
+      margin-bottom: 16px;
+    }
+    .connect-panel input:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+    }
+    .error-banner {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #f87171;
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .toolbar h2 {
+      font-size: 18px;
+      color: #0f172a;
+    }
+    .students-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 20px;
+    }
+    .student-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .student-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .student-name {
+      font-size: 16px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .student-status {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 9999px;
+    }
+    .student-online {
+      background: #dcfce7;
+      color: #15803d;
+    }
+    .student-offline {
+      background: #f1f5f9;
+      color: #64748b;
+    }
+    .screenshot-box {
+      width: 100%;
+      min-height: 160px;
+      background: #0f172a;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+    .screenshot-box img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .screenshot-placeholder {
+      color: #64748b;
+      font-size: 13px;
+      padding: 20px;
+      text-align: center;
+    }
+    .screenshot-loading {
+      color: #94a3b8;
+      font-size: 13px;
+      padding: 20px;
+      text-align: center;
+    }
+    .empty-state {
+      background: #ffffff;
+      border: 1px dashed #cbd5e1;
+      border-radius: 12px;
+      padding: 40px;
+      text-align: center;
+      color: #64748b;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1>Teacher Dashboard</h1>
+      <div class="room-info">Room: <strong id="roomDisplay">-</strong></div>
+    </div>
+    <div class="header-controls">
+      <span id="connStatus" class="status-badge status-disconnected">Disconnected</span>
+      <button id="disconnectBtn" class="btn btn-secondary" disabled>Disconnect</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Panel Connect -->
+    <div id="connectPanel" class="connect-panel">
+      <h2>Connect ke Room</h2>
+      <div id="errorBanner" class="error-banner"></div>
+      <label for="roomInput">Room Code</label>
+      <input type="text" id="roomInput" placeholder="ABC123" autocomplete="off">
+      <button id="connectBtn" class="btn btn-primary" style="width: 100%;">Connect</button>
+    </div>
+
+    <!-- Dashboard Content -->
+    <div id="dashboardContent" style="display: none;">
+      <div class="toolbar">
+        <h2>Students</h2>
+        <button id="screenshotAllBtn" class="btn btn-primary">📸 Screenshot Semua</button>
+      </div>
+      <div id="studentsGrid" class="students-grid"></div>
+    </div>
+  </div>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>

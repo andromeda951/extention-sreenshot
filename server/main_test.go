@@ -151,6 +151,134 @@ func TestTeacherReceivesStudentList(t *testing.T) {
 	}
 }
 
+func TestScreenshotRequestAndResult(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(handleWebSocket))
+	defer server.Close()
+
+	// Teacher connect
+	teacher := dialWS(t, server)
+	defer teacher.Close()
+	registerClient(t, teacher, "teacher", "", "ABC123")
+
+	msg := readMessage(t, teacher) // registered
+	if msg["type"] != "registered" {
+		t.Fatalf("Expected registered, got %v", msg["type"])
+	}
+	msg = readMessage(t, teacher) // student_list kosong
+	if msg["type"] != "student_list" {
+		t.Fatalf("Expected student_list, got %v", msg["type"])
+	}
+
+	// Student Budi connect
+	budi := dialWS(t, server)
+	defer budi.Close()
+	registerClient(t, budi, "student", "Budi", "ABC123")
+
+	msg = readMessage(t, budi) // registered
+	if msg["type"] != "registered" {
+		t.Fatalf("Expected registered, got %v", msg["type"])
+	}
+	msg = readMessage(t, teacher) // student_list berisi Budi
+	if msg["type"] != "student_list" {
+		t.Fatalf("Expected student_list, got %v", msg["type"])
+	}
+
+	// Teacher minta screenshot Budi
+	teacher.WriteMessage(websocket.TextMessage, []byte(`{"type":"screenshot_request","target":"Budi"}`))
+
+	// Budi menerima screenshot_request
+	msg = readMessage(t, budi)
+	if msg["type"] != "screenshot_request" {
+		t.Fatalf("Expected screenshot_request, got %v", msg["type"])
+	}
+
+	// Budi kirim screenshot_result
+	budi.WriteMessage(websocket.TextMessage, []byte(`{"type":"screenshot_result","image_data":"data:image/png;base64,AAAA"}`))
+
+	// Teacher menerima screenshot_result
+	msg = readMessage(t, teacher)
+	if msg["type"] != "screenshot_result" {
+		t.Fatalf("Expected screenshot_result, got %v", msg["type"])
+	}
+	if msg["student_name"] != "Budi" {
+		t.Fatalf("Expected student_name Budi, got %v", msg["student_name"])
+	}
+	if msg["image_data"] != "data:image/png;base64,AAAA" {
+		t.Fatalf("Expected image_data, got %v", msg["image_data"])
+	}
+}
+
+func TestScreenshotRequestAllStudents(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(handleWebSocket))
+	defer server.Close()
+
+	// Teacher connect
+	teacher := dialWS(t, server)
+	defer teacher.Close()
+	registerClient(t, teacher, "teacher", "", "ABC123")
+
+	msg := readMessage(t, teacher) // registered
+	if msg["type"] != "registered" {
+		t.Fatalf("Expected registered, got %v", msg["type"])
+	}
+	msg = readMessage(t, teacher) // student_list kosong
+	if msg["type"] != "student_list" {
+		t.Fatalf("Expected student_list, got %v", msg["type"])
+	}
+
+	// Student Budi & Andi connect
+	budi := dialWS(t, server)
+	defer budi.Close()
+	registerClient(t, budi, "student", "Budi", "ABC123")
+	msg = readMessage(t, budi) // registered
+	if msg["type"] != "registered" {
+		t.Fatalf("Expected registered, got %v", msg["type"])
+	}
+	msg = readMessage(t, teacher) // student_list
+	if msg["type"] != "student_list" {
+		t.Fatalf("Expected student_list, got %v", msg["type"])
+	}
+
+	andi := dialWS(t, server)
+	defer andi.Close()
+	registerClient(t, andi, "student", "Andi", "ABC123")
+	msg = readMessage(t, andi) // registered
+	if msg["type"] != "registered" {
+		t.Fatalf("Expected registered, got %v", msg["type"])
+	}
+	msg = readMessage(t, teacher) // student_list
+	if msg["type"] != "student_list" {
+		t.Fatalf("Expected student_list, got %v", msg["type"])
+	}
+
+	// Teacher minta screenshot semua
+	teacher.WriteMessage(websocket.TextMessage, []byte(`{"type":"screenshot_request","target":"all"}`))
+
+	// Budi & Andi menerima screenshot_request
+	msg = readMessage(t, budi)
+	if msg["type"] != "screenshot_request" {
+		t.Fatalf("Expected screenshot_request for Budi, got %v", msg["type"])
+	}
+	msg = readMessage(t, andi)
+	if msg["type"] != "screenshot_request" {
+		t.Fatalf("Expected screenshot_request for Andi, got %v", msg["type"])
+	}
+
+	// Keduanya kirim screenshot_result
+	budi.WriteMessage(websocket.TextMessage, []byte(`{"type":"screenshot_result","image_data":"data:image/png;base64,BUDI"}`))
+	andi.WriteMessage(websocket.TextMessage, []byte(`{"type":"screenshot_result","image_data":"data:image/png;base64,ANDI"}`))
+
+	// Teacher menerima 2 screenshot_result
+	msg = readMessage(t, teacher)
+	if msg["type"] != "screenshot_result" {
+		t.Fatalf("Expected screenshot_result, got %v", msg["type"])
+	}
+	msg = readMessage(t, teacher)
+	if msg["type"] != "screenshot_result" {
+		t.Fatalf("Expected screenshot_result, got %v", msg["type"])
+	}
+}
+
 func TestStudentInDifferentRoomNotSentToTeacher(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(handleWebSocket))
 	defer server.Close()

@@ -14,6 +14,8 @@ Chrome Extension sederhana berbasis Manifest V3 untuk membantu tutor Coding Kids
 * **Preview Screenshot**: Menampilkan pratinjau screenshot langsung di popup extension.
 * **Download Screenshot**: Tombol **"Download"** untuk menyimpan hasil screenshot ke komputer lokal.
 * **Daftar Student Online (Teacher)**: Teacher menerima update realtime daftar student yang sedang terhubung ke room.
+* **Teacher Dashboard**: Halaman dashboard untuk teacher menampilkan daftar student dan screenshot.
+* **Screenshot Request (Teacher → Student)**: Teacher dapat meminta screenshot dari satu student atau semua student. Student otomatis mengambil screenshot tanpa perlu menekan tombol apa pun.
 * **Privasi Ketat**: Tidak ada data yang dikirim ke server, tidak ada akses webcam/mikrofon/keylogger/background recording.
 
 ---
@@ -26,14 +28,16 @@ extention-sreenshot/
 ├── popup.html          # Tampilan antarmuka popup ekstensi
 ├── popup.css           # Styling tampilan popup
 ├── popup.js            # Logika deteksi tab, storage, dan screenshot
-├── background.js       # Service worker: koneksi WebSocket ke backend
+├── background.js       # Service worker: koneksi WebSocket + auto screenshot
+├── dashboard.html      # Teacher Dashboard (halaman extension)
+├── dashboard.js        # Logika Teacher Dashboard (dipisah karena CSP MV3)
 ├── test-student.html   # Simulator student untuk testing (buka di tab browser)
 ├── icons/              # Ikon ekstensi dalam berbagai ukuran
 │   ├── icon16.png
 │   ├── icon48.png
 │   └── icon128.png
 ├── server/             # Backend WebSocket (Go)
-│   ├── main.go         # Server WebSocket + grouping client per room
+│   ├── main.go         # Server WebSocket + grouping client per room + relay screenshot
 │   ├── main_test.go    # Test backend
 │   ├── go.mod          # Dependency Go
 │   └── go.sum          # Checksum dependency
@@ -68,6 +72,43 @@ go run .
 ```
 
 Server berjalan di port `8080` dengan endpoint WebSocket: `ws://localhost:8080/ws`.
+
+---
+
+## Cara Membuka Teacher Dashboard
+
+1. Buka popup extension.
+2. Pilih mode **Teacher**.
+3. Isi **Room Code**.
+4. Klik tombol **"Buka Teacher Dashboard"** di section Students.
+5. Dashboard terbuka di tab baru dan otomatis connect ke room.
+
+Atau buka langsung: `chrome-extension://<extension-id>/dashboard.html?room=ABC123`
+
+---
+
+## Alur WebSocket Screenshot
+
+```
+Teacher Dashboard          Go Backend               Student Extension
+     │                         │                          │
+     │ 1. screenshot_request   │                          │
+     │  (target: "Budi")       │                          │
+     ├────────────────────────►│                          │
+     │                         │ 2. screenshot_request    │
+     │                         ├─────────────────────────►│
+     │                         │                          │ 3. capture tab Scratch
+     │                         │                          │    (otomatis, tanpa klik)
+     │                         │ 4. screenshot_result     │
+     │                         │◄─────────────────────────┤
+     │ 5. screenshot_result    │                          │
+     │◄────────────────────────┤                          │
+     │                         │                          │
+     │ 6. Tampilkan screenshot │                          │
+     │    di dashboard         │                          │
+```
+
+Untuk **Screenshot Semua**, teacher mengirim `target: "all"` dan backend meneruskan ke semua student di room.
 
 ---
 
@@ -120,7 +161,23 @@ Server berjalan di port `8080` dengan endpoint WebSocket: `ws://localhost:8080/w
 
 > 💡 Buka `test-student.html` di tab sebanyak yang Anda mau untuk simulasi banyak student sekaligus.
 
-### 4. Uji Tab Bukan Scratch
+### 4. Uji Screenshot Satu Student (Teacher Dashboard)
+
+1. Pastikan backend berjalan.
+2. **Teacher**: Buka popup → mode **Teacher** → room `ABC123` → **Connect** → klik **"Buka Teacher Dashboard"**.
+3. **Student Budi**: Buka `test-student.html` → nama `Budi` → room `ABC123` → **Connect**.
+4. Di dashboard, klik tombol **"📸 Screenshot"** pada kartu Budi.
+5. Dashboard menampilkan "Mengambil screenshot..." lalu screenshot Budi muncul.
+   * Jika Budi adalah extension asli: screenshot tab Scratch Budi diambil otomatis.
+   * Jika Budi adalah `test-student.html`: gambar placeholder dikirim sebagai simulasi.
+
+### 5. Uji Screenshot Semua Student
+
+1. Pastikan ada minimal 2 student online (misal Budi & Andi via `test-student.html`).
+2. Di dashboard, klik tombol **"📸 Screenshot Semua"**.
+3. Semua student otomatis mengambil screenshot dan hasilnya muncul di dashboard masing-masing kartu.
+
+### 6. Uji Tab Bukan Scratch
 
 1. Buka tab baru, misalnya `https://google.com`.
 2. Klik ikon ekstensi **Coding Kids Monitor**.
@@ -130,7 +187,7 @@ Server berjalan di port `8080` dengan endpoint WebSocket: `ws://localhost:8080/w
    * Kotak peringatan merah muncul.
    * Tombol **"Ambil Screenshot"** tidak dapat ditekan (disabled).
 
-### 5. Uji Tab Scratch & Ambil Screenshot
+### 7. Uji Tab Scratch & Ambil Screenshot (V0)
 
 1. Buka website Scratch: `https://scratch.mit.edu/` atau `https://scratch.mit.edu/projects/editor/`.
 2. Klik ikon ekstensi **Coding Kids Monitor**.
@@ -141,7 +198,7 @@ Server berjalan di port `8080` dengan endpoint WebSocket: `ws://localhost:8080/w
 4. Klik tombol **"Ambil Screenshot"**.
 5. Gambar screenshot Scratch akan muncul di popup bersama tombol **"Download"**.
 
-### 6. Uji Download
+### 8. Uji Download
 
 1. Klik tombol **"Download"**.
 2. File PNG akan terunduh dengan format nama `scratch-screenshot-YYYY-MM-DD_HH-mm-ss.png`.
@@ -180,4 +237,53 @@ Untuk teacher, `student_name` tidak diperlukan:
 {
   "type": "student_list",
   "students": ["Budi", "Andi"]
+}
+```
+
+### Teacher → Server → Student (Screenshot Request)
+
+Teacher mengirim:
+
+```json
+{
+  "type": "screenshot_request",
+  "target": "Budi"
+}
+```
+
+Untuk semua student:
+
+```json
+{
+  "type": "screenshot_request",
+  "target": "all"
+}
+```
+
+Server meneruskan ke student yang dituju:
+
+```json
+{
+  "type": "screenshot_request"
+}
+```
+
+### Student → Server → Teacher (Screenshot Result)
+
+Student mengirim:
+
+```json
+{
+  "type": "screenshot_result",
+  "image_data": "data:image/png;base64,..."
+}
+```
+
+Server meneruskan ke semua teacher di room:
+
+```json
+{
+  "type": "screenshot_result",
+  "student_name": "Budi",
+  "image_data": "data:image/png;base64,..."
 }

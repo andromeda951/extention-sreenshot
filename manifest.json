@@ -6,6 +6,9 @@
   "background": {
     "service_worker": "background.js"
   },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src ws://localhost:* http://localhost:*"
+  },
   "permissions": [
     "activeTab",
     "tabs",
@@ -15,7 +18,14 @@
   "host_permissions": [
     "*://scratch.mit.edu/*",
     "*://*.scratch.mit.edu/*",
-    "ws://localhost/*"
+    "ws://localhost/*",
+    "<all_urls>"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["dashboard.html", "dashboard.js"],
+      "matches": ["<all_urls>"]
+    }
   ],
   "action": {
     "default_popup": "popup.html",

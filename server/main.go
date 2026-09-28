@@ -100,6 +100,39 @@ func (h *Hub) broadcastToTeachers(roomCode string, msg []byte) {
 	}
 }
 
+// broadcastToStudents mengirim pesan ke semua student di room.
+func (h *Hub) broadcastToStudents(roomCode string, msg []byte) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for c := range h.rooms[roomCode] {
+		if c.mode == "student" {
+			select {
+			case c.send <- msg:
+			default:
+				// Buffer penuh, abaikan.
+			}
+		}
+	}
+}
+
+// sendToStudent mengirim pesan ke satu student tertentu di room berdasarkan nama.
+// Mengembalikan true jika student ditemukan dan pesan terkirim.
+func (h *Hub) sendToStudent(roomCode, studentName string, msg []byte) bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for c := range h.rooms[roomCode] {
+		if c.mode == "student" && c.name == studentName {
+			select {
+			case c.send <- msg:
+				return true
+			default:
+				return false
+			}
+		}
+	}
+	return false
+}
+
 // notifyStudentList mengirim daftar student terbaru ke semua teacher di room.
 func (h *Hub) notifyStudentList(roomCode string) {
 	names := h.studentNames(roomCode)
@@ -152,7 +185,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	client := &Client{
 		conn: conn,
-		send: make(chan []byte, 256),
+		send: make(chan []byte, 1024),
 	}
 
 	// Pesan pertama harus berupa register: {type:"register", mode, student_name, room_code}
@@ -230,9 +263,49 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	// Loop membaca pesan dari client hingga koneksi terputus
 	for {
-		_, _, err := conn.ReadMessage()
+		_, data, err := conn.ReadMessage()
 		if err != nil {
 			break
+		}
+
+		var msg map[string]interface{}
+		if err := json.Unmarshal(data, &msg); err != nil {
+			continue
+		}
+
+		msgType, _ := msg["type"].(string)
+
+		switch msgType {
+		case "screenshot_request":
+			// Teacher meminta screenshot dari satu student atau semua student.
+			if client.mode != "teacher" {
+				continue
+			}
+			target, _ := msg["target"].(string)
+			reqMsg, _ := json.Marshal(map[string]interface{}{
+				"type": "screenshot_request",
+			})
+			if target == "all" || target == "" {
+				hub.broadcastToStudents(client.roomCode, reqMsg)
+			} else {
+				hub.sendToStudent(client.roomCode, target, reqMsg)
+			}
+
+		case "screenshot_result":
+			// Student mengirim hasil screenshot, teruskan ke semua teacher di room.
+			if client.mode != "student" {
+				continue
+			}
+			imageData, _ := msg["image_data"].(string)
+			if imageData == "" {
+				continue
+			}
+			resultMsg, _ := json.Marshal(map[string]interface{}{
+				"type":         "screenshot_result",
+				"student_name": client.name,
+				"image_data":   imageData,
+			})
+			hub.broadcastToTeachers(client.roomCode, resultMsg)
 		}
 	}
 
